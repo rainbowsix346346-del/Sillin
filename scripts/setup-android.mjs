@@ -20,8 +20,6 @@ console.log('Rebuilding dist/ with patched Sillon audio & scanner engine...');
 execSync('npm run build', { stdio: 'inherit' });
 
 // Step B: Configure AndroidManifest.xml + Native SillonMediaScannerPlugin
-import fs from 'fs';
-import path from 'path';
 
 const manifestPath = path.join('android', 'app', 'src', 'main', 'AndroidManifest.xml');
 
