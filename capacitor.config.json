@@ -1,0 +1,8 @@
+{
+  "appId": "ir.hossein.sillon",
+  "appName": "Sillon",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true
+  }
+}
