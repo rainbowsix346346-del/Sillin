@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
+  <defs>
+    <!-- Soft matte lavender-periwinkle squircle background (non-neon) -->
+    <linearGradient id="sillon-bg" x1="64" y1="36" x2="452" y2="484" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F6F7FD" />
+      <stop offset="52%" stop-color="#ECEFF9" />
+      <stop offset="100%" stop-color="#DFE4F4" />
+    </linearGradient>
+
+    <!-- Soft diffused upper-left ambient highlight -->
+    <radialGradient id="sillon-highlight" cx="30%" cy="22%" r="68%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.88" />
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#4A558F" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Deep indigo-slate emblem gradient -->
+    <linearGradient id="sillon-emblem" x1="126" y1="112" x2="394" y2="404" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5B67A6" />
+      <stop offset="55%" stop-color="#4A558F" />
+      <stop offset="100%" stop-color="#374071" />
+    </linearGradient>
+
+    <!-- Warm muted slate-mauve accent bar gradient -->
+    <linearGradient id="sillon-wave-warm" x1="256" y1="154" x2="256" y2="358" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F8F9FC" />
+      <stop offset="100%" stop-color="#DFE4F6" />
+    </linearGradient>
+
+    <!-- Soft ambient drop shadow under central disc -->
+    <filter id="sillon-disc-shadow" x="15%" y="15%" width="74%" height="78%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#374071" flood-opacity="0.20" />
+    </filter>
+  </defs>
+
+  <!-- Matte Squircle Canvas -->
+  <rect x="16" y="16" width="480" height="480" rx="116" fill="url(#sillon-bg)" />
+  <rect x="16" y="16" width="480" height="480" rx="116" fill="url(#sillon-highlight)" />
+  <rect x="20" y="20" width="472" height="472" rx="112" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="4" />
+
+  <!-- Subtle outer tactile groove rings -->
+  <circle cx="256" cy="256" r="196" stroke="#4A558F" stroke-opacity="0.09" stroke-width="2.5" />
+  <circle cx="256" cy="256" r="174" stroke="#4A558F" stroke-opacity="0.14" stroke-width="2" stroke-dasharray="18 10" />
+
+  <!-- Central Tactile Indigo-Slate Vinyl-Wave Disc -->
+  <g filter="url(#sillon-disc-shadow)">
+    <circle cx="256" cy="256" r="144" fill="url(#sillon-emblem)" />
+    <!-- Subtle satin vinyl grooves inside disc -->
+    <circle cx="256" cy="256" r="126" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="2" />
+    <circle cx="256" cy="256" r="108" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="2" />
+    <circle cx="256" cy="256" r="142" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="3" />
+  </g>
+
+  <!-- Sculpted Minimalist Acoustic Wave Bars inside the Disc -->
+  <g fill="url(#sillon-wave-warm)">
+    <rect x="164" y="220" width="26" height="72" rx="13" opacity="0.78" />
+    <rect x="208" y="168" width="28" height="176" rx="14" />
+    <rect x="254" y="192" width="28" height="128" rx="14" opacity="0.94" />
+    <rect x="300" y="158" width="28" height="196" rx="14" />
+    <rect x="346" y="214" width="22" height="84" rx="11" opacity="0.72" />
+  </g>
+
+  <!-- Subtle acoustic needle dot accent at upper-right rim -->
+  <circle cx="378" cy="134" r="11" fill="#4A558F" fill-opacity="0.24" />
+  <circle cx="378" cy="134" r="5.5" fill="#4A558F" />
+</svg>

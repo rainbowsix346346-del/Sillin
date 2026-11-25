@@ -1,0 +1,8 @@
+{
+  "name": "Sillon — Tactile Vinyl Music Player",
+  "description": "A mobile-first tactile vinyl music player with soft periwinkle-lavender aesthetics, dynamic album-art accent extraction, interactive vinyl carousel, realistic turntable physics, and Web Audio spectrum visualization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
