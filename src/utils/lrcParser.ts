@@ -8,6 +8,25 @@ export interface ParsedLyrics {
   lines: LyricLine[];
 }
 
+export function normalizeAngleDelta(delta: number): number {
+  let d = delta;
+  // Support both radians (-PI to PI) and degrees (-180 to 180) smoothly
+  if (Math.abs(d) <= Math.PI * 2.5) {
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+  } else {
+    while (d > 180) d -= 360;
+    while (d < -180) d += 360;
+  }
+  return d;
+}
+
+export function angleDeltaToTimeDelta(angleDelta: number, secondsPerRevolution = 1.8): number {
+  const normalized = normalizeAngleDelta(angleDelta);
+  const fullCircle = Math.abs(angleDelta) <= Math.PI * 2.5 ? Math.PI * 2 : 360;
+  return (normalized / fullCircle) * secondsPerRevolution;
+}
+
 export function parseLrcOrPlainLyrics(raw?: string | null): ParsedLyrics {
   if (!raw || !raw.trim()) {
     return { isSynced: false, lines: [] };
@@ -22,7 +41,6 @@ export function parseLrcOrPlainLyrics(raw?: string | null): ParsedLyrics {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Skip metadata tags like [ar:...], [ti:...], [al:...], [by:...]
     if (/^\[(ar|ti|al|by|offset|re|ve):.*\]$/i.test(trimmed)) {
       continue;
     }
