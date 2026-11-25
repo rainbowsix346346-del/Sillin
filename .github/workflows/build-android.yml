@@ -38,6 +38,15 @@ jobs:
           node scripts/setup-android.mjs
           npx cap sync android
 
+      - name: Fix Kotlin duplicate classes
+        run: |
+          cat << 'EOF' >> android/app/build.gradle
+          configurations.all {
+              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+          }
+          EOF
+
       - name: Generate Release Keystore
         run: |
           keytool -genkeypair -v -keystore sillon-release.keystore -alias sillonkey -keyalg RSA -keysize 2048 -validity 10000 -storepass Sillon2026Pass -keypass Sillon2026Pass -dname "CN=Hossein Hamidi, OU=Sillon, O=Sillon, L=Ahvaz, ST=Khuzestan, C=IR"
