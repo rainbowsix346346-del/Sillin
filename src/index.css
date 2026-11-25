@@ -1,0 +1,206 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Fraunces", "Vazirmatn", Georgia, Cambria, serif;
+  --font-sans: "Plus Jakarta Sans", "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root {
+  --canvas: #F7F8FC;
+  --surface: #ECEFF8;
+  --surface-rgb: 236, 239, 248;
+  --ink: #1D2238;
+  --ink-secondary: #545C7A;
+  --ink-muted: #7C84A3;
+
+  /* Dynamic 3-Color Album Atmosphere Variables (defaults to Indigo-Slate #4A558F) */
+  --accent: #4A558F;
+  --accent-rgb: 74, 85, 143;
+  --accent-dark: #364073;
+  --accent-soft: #E3E7F5;
+  --accent-tint: rgba(74, 85, 143, 0.13);
+  --accent-secondary: #6F7EB8;
+  --accent-warm: #94789E;
+
+  /* Custom Colored Marbled Vinyl Variables */
+  --vinyl-base: #2F3862;
+  --vinyl-mid: #5866A3;
+  --vinyl-splatter: #B9C3E8;
+
+  /* Bass-Reactive Ambient Aura Variables */
+  --aura-primary: rgba(74, 85, 143, 0.28);
+  --aura-secondary: rgba(111, 126, 184, 0.22);
+
+  /* Expressive Spring Easing */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html,
+body {
+  font-family: var(--font-sans);
+  background-color: var(--canvas);
+  color: var(--ink);
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 800ms ease-in-out;
+}
+
+html[dir="rtl"] body,
+html[dir="rtl"] .font-serif {
+  font-family: "Vazirmatn", "Plus Jakarta Sans", sans-serif;
+}
+
+/* Smooth 800ms ease-in-out dynamic atmosphere morphing — strictly no box-shadow or layout transitions for 60fps mobile perf */
+.accent-transition {
+  transition:
+    background-color 800ms ease-in-out,
+    color 800ms ease-in-out,
+    border-color 800ms ease-in-out,
+    fill 800ms ease-in-out,
+    stroke 800ms ease-in-out;
+}
+
+/* Tactile dynamically tinted card surface — zero backdrop-filter on scrolling cards */
+.vinyl-card {
+  background-color: var(--surface);
+  border-radius: 24px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 10px 26px -12px rgba(var(--accent-rgb), 0.15),
+    0 2px 6px -2px rgba(29, 34, 56, 0.04);
+  transition:
+    background-color 800ms ease-in-out,
+    border-color 800ms ease-in-out;
+}
+
+.vinyl-card-interactive {
+  background-color: var(--surface);
+  border-radius: 24px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 10px 26px -12px rgba(var(--accent-rgb), 0.15),
+    0 2px 6px -2px rgba(29, 34, 56, 0.04);
+  will-change: transform;
+  transition:
+    transform 260ms var(--ease-spring),
+    background-color 800ms ease-in-out,
+    border-color 800ms ease-in-out;
+}
+
+/* Frosted floating dock surface — strictly limited to Mini-Player & Bottom Capsule Dock */
+.frosted-dock {
+  background: rgba(var(--surface-rgb), 0.86);
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 14px 36px -10px rgba(var(--accent-rgb), 0.24),
+    0 4px 12px -4px rgba(29, 34, 56, 0.08);
+  transition: background-color 800ms ease-in-out;
+}
+
+/* Glassmorphic album-colored floating Mini-Player pill */
+.frosted-mini-player {
+  background: linear-gradient(
+    118deg,
+    rgba(var(--accent-rgb), 0.16) 0%,
+    rgba(var(--surface-rgb), 0.78) 46%,
+    rgba(255, 255, 255, 0.74) 100%
+  );
+  backdrop-filter: blur(24px) saturate(165%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -1px 0 rgba(var(--accent-rgb), 0.12),
+    0 16px 38px -12px rgba(var(--accent-rgb), 0.30),
+    0 4px 14px -4px rgba(29, 34, 56, 0.08);
+  transition:
+    background-color 800ms ease-in-out,
+    border-color 800ms ease-in-out;
+}
+
+/* Frosted modal overlay — strictly limited to active floating utility popups & What's New dialog */
+.frosted-modal {
+  background: rgba(var(--surface-rgb), 0.92);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 22px 48px -12px rgba(29, 34, 56, 0.22),
+    0 4px 14px -4px rgba(var(--accent-rgb), 0.18);
+  transition: background-color 800ms ease-in-out;
+}
+
+/* Custom translucent tinted vinyl texture for Turntable mode */
+.vinyl-disc-surface {
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.18) 0%, transparent 38%),
+    radial-gradient(circle at 72% 76%, var(--vinyl-splatter) 0%, transparent 34%),
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      var(--vinyl-base) 0px,
+      var(--vinyl-base) 1.5px,
+      var(--vinyl-mid) 2.5px,
+      var(--vinyl-base) 4px
+    );
+}
+
+.vinyl-specular {
+  background: conic-gradient(
+    from 22deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.18) 24deg,
+    transparent 52deg,
+    transparent 175deg,
+    rgba(255, 255, 255, 0.2) 205deg,
+    transparent 236deg,
+    transparent 360deg
+  );
+}
+
+/* Clean hidden scrollbar for horizontal shelves */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Range input styling for EQ sliders */
+input[type="range"].tactile-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"].tactile-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(var(--accent-rgb), 0.2);
+}
+
+input[type="range"].tactile-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--accent);
+  border: 2.5px solid var(--canvas);
+  box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.35);
+  margin-top: -6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
