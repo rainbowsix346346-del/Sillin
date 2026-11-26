@@ -31,6 +31,7 @@ import {
 } from './utils/musicLogic';
 import { extractAudioMetadataFromFile } from './utils/id3Parser';
 import {
+  convertCapacitorUri,
   extractFolderPathFromFile,
   filterTracksByLibraryRules,
   isSupportedAudioFile,
@@ -344,6 +345,48 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [isPlaying, currentTrack, repeat, queue.length, handleNext]);
 
+  // Sync Android Notification Shade & Lock Screen MediaSession controls
+  useEffect(() => {
+    syncMediaSessionMetadata(currentTrack);
+  }, [
+    currentTrack?.id,
+    currentTrack?.title,
+    currentTrack?.artist,
+    currentTrack?.albumTitle,
+    currentTrack?.coverUrl,
+  ]);
+
+  useEffect(() => {
+    syncMediaSessionPlaybackState(isPlaying, Boolean(currentTrack));
+  }, [isPlaying, currentTrack]);
+
+  useEffect(() => {
+    syncMediaSessionPositionState(duration, currentTime, playbackRate);
+  }, [duration, currentTime, playbackRate]);
+
+  useEffect(() => {
+    return registerMediaSessionHandlers({
+      onPlay: () => setIsPlaying(true),
+      onPause: () => setIsPlaying(false),
+      onStop: () => {
+        setIsPlaying(false);
+        vinylAudioEngine.stop();
+        setCurrentTime(0);
+      },
+      onNextTrack: handleNext,
+      onPreviousTrack: handlePrev,
+      onSeekTo: (sec) => {
+        vinylAudioEngine.seek(sec);
+        setCurrentTime(sec);
+      },
+      onSeekBy: (delta) => {
+        const nextPos = Math.max(0, vinylAudioEngine.getCurrentTime() + delta);
+        vinylAudioEngine.seek(nextPos);
+        setCurrentTime(nextPos);
+      },
+    });
+  }, [handleNext, handlePrev]);
+
   // Sleep timer countdown
   useEffect(() => {
     if (sleepMinutesLeft === null) return;
@@ -377,9 +420,13 @@ export default function App() {
   }, [isNowPlayingOpen, currentTrack]);
 
   const ingestAudioEntries = useCallback(
-    async (entries: ScannedAudioEntry[]) => {
+    async (entries: ScannedAudioEntry[], options: { autoPlay?: boolean } = { autoPlay: true }) => {
       const validEntries = entries.filter((entry) =>
-        isSupportedAudioFile(entry.file.name, entry.file.type)
+        entry.nativeTrack
+          ? true
+          : entry.file
+            ? isSupportedAudioFile(entry.file.name, entry.file.type)
+            : false
       );
       if (!validEntries.length) return;
 
@@ -387,7 +434,64 @@ export default function App() {
       const albumGroups = new Map<string, Album>();
 
       for (let i = 0; i < validEntries.length; i++) {
-        const { file, folderPath } = validEntries[i];
+        const entry = validEntries[i];
+        const paletteSeed =
+          SLEEVE_PALETTES[(tracks.length + i) % SLEEVE_PALETTES.length];
+
+        if (entry.nativeTrack) {
+          const nt = entry.nativeTrack;
+          const audioUrl = convertCapacitorUri(nt.filePath || nt.contentUri);
+          const albumKey = `${nt.album.toLowerCase()}::${nt.artist.toLowerCase()}`;
+          const albumId = `alb-${albumKey.replace(/[^a-z0-9\u0600-\u06FF]+/g, '-')}`;
+          const trackId = `native-${nt.id}`;
+
+          const track: Track = {
+            id: trackId,
+            title: nt.title,
+            artist: nt.artist,
+            albumId,
+            albumTitle: nt.album,
+            genre: 'Local Audio',
+            year: nt.year || 2025,
+            duration: nt.duration || 180,
+            coverUrl: undefined,
+            coverBytes: 0,
+            fallbackGradient: paletteSeed.gradient,
+            accentSeedHex: paletteSeed.hex,
+            isFavorite: false,
+            isLocalFile: true,
+            folderPath: nt.folderPath,
+            audioUrl,
+            addedOrder: tracks.length + i + 1,
+            moodShiftDeg: (i % 4) * 11,
+            lyrics: [],
+          };
+
+          addedTracks.push(track);
+
+          const existingGroup = albumGroups.get(albumId);
+          if (existingGroup) {
+            existingGroup.trackIds.push(trackId);
+          } else {
+            albumGroups.set(albumId, {
+              id: albumId,
+              title: nt.album,
+              artist: nt.artist,
+              year: nt.year || 2025,
+              genre: 'Local Audio',
+              coverUrl: undefined,
+              fallbackGradient: paletteSeed.gradient,
+              trackIds: [trackId],
+              accentHint: paletteSeed.hex,
+              addedOrder: albums.length + albumGroups.size + 1,
+              rediscoverNote: 'Device music library',
+            });
+          }
+          continue;
+        }
+
+        const file = entry.file!;
+        const folderPath = entry.folderPath;
         const objectUrl = URL.createObjectURL(file);
         audioUrlsRef.current.push(objectUrl);
 
@@ -418,10 +522,8 @@ export default function App() {
           probe.src = objectUrl;
         });
 
-        const paletteSeed =
-          SLEEVE_PALETTES[(tracks.length + i) % SLEEVE_PALETTES.length];
         const albumKey = `${meta.albumTitle.toLowerCase()}::${meta.artist.toLowerCase()}`;
-        const albumId = `alb-${albumKey.replace(/[^a-z0-9]+/g, '-')}`;
+        const albumId = `alb-${albumKey.replace(/[^a-z0-9\u0600-\u06FF]+/g, '-')}`;
         const trackId = `local-${Date.now()}-${i}`;
 
         const track: Track = {
@@ -471,7 +573,11 @@ export default function App() {
         }
       }
 
-      setTracks((prev) => [...addedTracks, ...prev]);
+      setTracks((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const deduped = addedTracks.filter((tr) => !existingIds.has(tr.id));
+        return [...deduped, ...prev];
+      });
       setAlbums((prev) => {
         const merged = new Map<string, Album>();
         for (const a of prev) {
@@ -480,7 +586,8 @@ export default function App() {
         for (const [id, incoming] of albumGroups.entries()) {
           const existing = merged.get(id);
           if (existing) {
-            existing.trackIds = [...incoming.trackIds, ...existing.trackIds];
+            const combinedIds = Array.from(new Set([...incoming.trackIds, ...existing.trackIds]));
+            existing.trackIds = combinedIds;
             if (!existing.coverUrl && incoming.coverUrl) {
               existing.coverUrl = incoming.coverUrl;
             }
@@ -491,10 +598,14 @@ export default function App() {
         return Array.from(merged.values());
       });
 
-      setQueueIds((prev) => [...addedTracks.map((tr) => tr.id), ...prev]);
-      setCurrentTrackId(addedTracks[0].id);
-      setCurrentTime(0);
-      setIsPlaying(true);
+      setQueueIds((prev) => Array.from(new Set([...addedTracks.map((tr) => tr.id), ...prev])));
+      if (options.autoPlay !== false) {
+        setCurrentTrackId(addedTracks[0].id);
+        setCurrentTime(0);
+        setIsPlaying(true);
+      } else {
+        setCurrentTrackId((prev) => prev || addedTracks[0].id);
+      }
 
       showNotice(
         addedTracks.length === 1
@@ -525,7 +636,7 @@ export default function App() {
 
     void scanDeviceMusicLibrary({ autoLaunch: true }).then((result) => {
       if (active && result.entries.length > 0) {
-        void ingestAudioEntries(result.entries);
+        void ingestAudioEntries(result.entries, { autoPlay: false });
       }
     });
 

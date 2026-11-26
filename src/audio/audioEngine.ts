@@ -99,6 +99,16 @@ export class VinylAudioEngine {
   }
 
   private connectMediaElement(): void {
+    const isNative =
+      typeof window !== 'undefined' &&
+      Boolean(
+        (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } })
+          .Capacitor?.isNativePlatform?.()
+      );
+    // On Android WebView, keeping HTMLAudioElement routed directly to system media output
+    // ensures Android's native MediaSession notification & lock-screen player always appear.
+    if (isNative) return;
+
     const ctx = this.ensureContext();
     const el = this.ensureAudioElement();
     if (!ctx || !el || !this.masterGain || this.mediaSource) return;

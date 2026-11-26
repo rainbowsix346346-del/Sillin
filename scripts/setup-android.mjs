@@ -243,11 +243,10 @@ public class MainActivity extends BridgeActivity {
 }`
     );
     // Clean duplicate import if present
-    mainAct = mainAct.replace('import com.getcapacitor.BridgeActivity;
-
-import android.os.Bundle;
-import com.getcapacitor.BridgeActivity;', 'import android.os.Bundle;
-import com.getcapacitor.BridgeActivity;');
+    mainAct = mainAct.replace(
+      `import com.getcapacitor.BridgeActivity;\n\nimport android.os.Bundle;\nimport com.getcapacitor.BridgeActivity;`,
+      `import android.os.Bundle;\nimport com.getcapacitor.BridgeActivity;`
+    );
     fs.writeFileSync(mainActivityPath, mainAct, 'utf8');
     console.log('MainActivity.java updated with SillonMediaScannerPlugin!');
   }

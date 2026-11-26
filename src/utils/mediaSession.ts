@@ -1,4 +1,9 @@
 import { Track } from '../types/music';
+import {
+  syncNativeMediaNotification,
+  hideNativeMediaNotification,
+  addNativeMediaActionListener,
+} from './nativeNotification';
 
 export interface MediaSessionHandlers {
   onPlay: () => void;
@@ -169,14 +174,46 @@ function getNavigatorMediaSession(
   return navigator.mediaSession;
 }
 
-export function syncMediaSessionMetadata(track: Track | null): void {
-  const session = getNavigatorMediaSession();
-  if (!session || typeof MediaMetadata === 'undefined') return;
+// Cached last track payload so playback-state changes can refresh the native
+// notification (play/pause button) without needing the full metadata again.
+interface NativeTrackPayload {
+  title: string;
+  artist: string;
+  album: string;
+  artUri: string;
+}
+let lastNativeTrack: NativeTrackPayload | null = null;
+let lastPlaybackState: { playing: boolean } | null = null;
 
+function resyncNativeNotificationState(): void {
+  if (!lastNativeTrack || !lastPlaybackState) return;
+  syncNativeMediaNotification({
+    ...lastNativeTrack,
+    playing: lastPlaybackState.playing,
+  });
+}
+
+export function syncMediaSessionMetadata(track: Track | null): void {
   if (!track) {
-    session.metadata = null;
+    lastNativeTrack = null;
+    lastPlaybackState = null;
+    hideNativeMediaNotification();
+    const session = getNavigatorMediaSession();
+    if (session) session.metadata = null;
     return;
   }
+
+  const nativePayload: NativeTrackPayload = {
+    title: track.title,
+    artist: track.artist,
+    album: track.albumTitle,
+    artUri: track.coverUrl || '',
+  };
+  lastNativeTrack = nativePayload;
+  resyncNativeNotificationState();
+
+  const session = getNavigatorMediaSession();
+  if (!session || typeof MediaMetadata === 'undefined') return;
 
   let fallbackUrl = '/app-icon.svg';
   if (!track.coverUrl) {
@@ -206,6 +243,16 @@ export function syncMediaSessionPlaybackState(
   isPlaying: boolean,
   hasTrack: boolean
 ): void {
+  // Refresh the native notification play/pause button state first — works even
+  // when the WebView does not expose navigator.mediaSession.
+  if (!hasTrack) {
+    lastPlaybackState = null;
+    hideNativeMediaNotification();
+  } else {
+    lastPlaybackState = { playing: isPlaying };
+    resyncNativeNotificationState();
+  }
+
   const session = getNavigatorMediaSession();
   if (!session) return;
 
@@ -243,8 +290,17 @@ export function registerMediaSessionHandlers(
   customSession?: MediaSession | null
 ): () => void {
   const session = getNavigatorMediaSession(customSession);
+
+  // Native Android notification controls -> same handlers
+  const removeNativeListener = addNativeMediaActionListener((action) => {
+    if (action === 'play') handlers.onPlay();
+    else if (action === 'pause') handlers.onPause();
+    else if (action === 'next') handlers.onNextTrack();
+    else if (action === 'prev') handlers.onPreviousTrack();
+  });
+
   if (!session || typeof session.setActionHandler !== 'function') {
-    return () => {};
+    return removeNativeListener;
   }
 
   const actions: Array<[MediaSessionAction, MediaSessionActionHandler | null]> = [
@@ -289,6 +345,7 @@ export function registerMediaSessionHandlers(
   }
 
   return () => {
+    removeNativeListener();
     for (const [action] of actions) {
       try {
         session.setActionHandler(action, null);
