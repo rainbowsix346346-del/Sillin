@@ -1,8 +1,22 @@
 import { ShortClipThreshold, Track } from '../types/music';
 
 export interface ScannedAudioEntry {
-  file: File;
+  file?: File;
+  nativeTrack?: NativeScannedTrack;
   folderPath: string;
+}
+
+export interface NativeScannedTrack {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  duration: number;
+  contentUri: string;
+  filePath: string;
+  folderPath: string;
+  albumArtUri: string;
+  year: number;
 }
 
 export interface ScanResult {
@@ -13,22 +27,23 @@ export interface ScanResult {
 
 const AUDIO_FILE_REGEX = /\.(mp3|flac|wav|m4a|ogg|aac|opus)$/i;
 
+interface SillonMediaScannerPlugin {
+  scanAllAudio: () => Promise<{
+    granted: boolean;
+    tracks: NativeScannedTrack[];
+  }>;
+}
+
 interface CapacitorFilesystemPlugin {
   requestPermissions?: () => Promise<{ publicStorage?: string }>;
   checkPermissions?: () => Promise<{ publicStorage?: string }>;
-  readdir: (opts: {
-    path: string;
-    directory: string;
-  }) => Promise<{ files: Array<{ name: string; type?: string; uri?: string }> }>;
-  readFile: (opts: {
-    path: string;
-    directory: string;
-  }) => Promise<{ data: string }>;
 }
 
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
+  convertFileSrc?: (url: string) => string;
   Plugins?: {
+    SillonMediaScanner?: SillonMediaScannerPlugin;
     Filesystem?: CapacitorFilesystemPlugin;
   };
 }
@@ -57,31 +72,20 @@ export function isCapacitorNative(): boolean {
   return Boolean(getCapacitor()?.isNativePlatform?.());
 }
 
+export function convertCapacitorUri(uri: string): string {
+  const cap = getCapacitor();
+  if (cap?.convertFileSrc && uri) {
+    return cap.convertFileSrc(uri);
+  }
+  return uri;
+}
+
 export function isSupportedAudioFile(name: string, mimeType = ''): boolean {
   return mimeType.startsWith('audio/') || AUDIO_FILE_REGEX.test(name);
 }
 
-function base64ToUint8Array(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
-
-function guessAudioMime(name: string): string {
-  const lower = name.toLowerCase();
-  if (lower.endsWith('.mp3')) return 'audio/mpeg';
-  if (lower.endsWith('.flac')) return 'audio/flac';
-  if (lower.endsWith('.wav')) return 'audio/wav';
-  if (lower.endsWith('.m4a')) return 'audio/mp4';
-  if (lower.endsWith('.ogg')) return 'audio/ogg';
-  return 'audio/mpeg';
-}
-
 /**
- * Requests Android storage/audio permissions via Capacitor Filesystem plugin
+ * Requests Android storage/audio permissions via Capacitor plugin
  * when running as a native Android APK; resolves cleanly on web.
  */
 export async function requestAudioStoragePermissions(): Promise<{
@@ -89,87 +93,61 @@ export async function requestAudioStoragePermissions(): Promise<{
   mode: 'native' | 'web';
 }> {
   const cap = getCapacitor();
-  if (!cap?.isNativePlatform?.() || !cap.Plugins?.Filesystem) {
+  if (!cap?.isNativePlatform?.()) {
     return { granted: true, mode: 'web' };
   }
 
   try {
-    const fs = cap.Plugins.Filesystem;
-    const status = fs.requestPermissions
-      ? await fs.requestPermissions()
-      : await fs.checkPermissions?.();
-    const granted =
-      !status ||
-      status.publicStorage === 'granted' ||
-      status.publicStorage === 'limited';
-    return { granted, mode: 'native' };
+    if (cap.Plugins?.Filesystem) {
+      const fs = cap.Plugins.Filesystem;
+      const status = fs.requestPermissions
+        ? await fs.requestPermissions()
+        : await fs.checkPermissions?.();
+      const granted =
+        !status ||
+        status.publicStorage === 'granted' ||
+        status.publicStorage === 'limited';
+      return { granted, mode: 'native' };
+    }
+    return { granted: true, mode: 'native' };
   } catch {
     return { granted: false, mode: 'native' };
   }
 }
 
 /**
- * Recursively scans Android shared storage folders (Music, Download, Audio)
- * via Capacitor Filesystem plugin when packaged as an Android APK.
+ * Scans ALL audio tracks across the entire Android device instantly via Android MediaStore
+ * (using native SillonMediaScannerPlugin), bypassing slow recursive base64 file reads.
  */
 async function scanCapacitorAndroidStorage(): Promise<ScanResult> {
-  const perm = await requestAudioStoragePermissions();
-  if (!perm.granted) {
-    return { entries: [], source: 'capacitor-native', permissionDenied: true };
-  }
+  const cap = getCapacitor();
+  const scanner = cap?.Plugins?.SillonMediaScanner;
 
-  const fs = getCapacitor()?.Plugins?.Filesystem;
-  if (!fs) {
+  if (!scanner) {
     return { entries: [], source: 'fallback-needed' };
   }
 
-  const entries: ScannedAudioEntry[] = [];
-  const rootFolders = ['Music', 'Download', 'Audio', 'Podcasts'];
-
-  const walk = async (dirPath: string, depth: number): Promise<void> => {
-    if (depth > 4) return;
-    try {
-      const listing = await fs.readdir({
-        path: dirPath,
-        directory: 'EXTERNAL_STORAGE',
-      });
-      for (const item of listing.files) {
-        const nextPath = dirPath ? `${dirPath}/${item.name}` : item.name;
-        if (item.type === 'directory') {
-          await walk(nextPath, depth + 1);
-        } else if (isSupportedAudioFile(item.name)) {
-          try {
-            const raw = await fs.readFile({
-              path: nextPath,
-              directory: 'EXTERNAL_STORAGE',
-            });
-            const bytes = base64ToUint8Array(raw.data);
-            const safeBuffer = new Uint8Array(bytes.byteLength);
-            safeBuffer.set(bytes);
-            const file = new File([safeBuffer], item.name, {
-              type: guessAudioMime(item.name),
-            });
-            entries.push({ file, folderPath: dirPath });
-          } catch {
-            // Skip unreadable file cleanly
-          }
-        }
-      }
-    } catch {
-      // Directory may not exist on device; continue cleanly
+  try {
+    const res = await scanner.scanAllAudio();
+    if (!res.granted) {
+      return { entries: [], source: 'capacitor-native', permissionDenied: true };
     }
-  };
 
-  for (const root of rootFolders) {
-    await walk(root, 0);
+    const entries: ScannedAudioEntry[] = (res.tracks || []).map((nt) => ({
+      nativeTrack: nt,
+      folderPath: nt.folderPath || 'Device Music',
+    }));
+
+    return { entries, source: 'capacitor-native' };
+  } catch {
+    return { entries: [], source: 'fallback-needed' };
   }
-
-  return { entries, source: 'capacitor-native' };
 }
 
 /**
  * Hybrid device scanner:
- * 1. Native Android (Capacitor): requests storage permissions and scans device folders.
+ * 1. Native Android (Capacitor): requests READ_MEDIA_AUDIO / READ_EXTERNAL_STORAGE + POST_NOTIFICATIONS
+ *    and queries Android MediaStore for every song on the phone automatically.
  * 2. Web (Chromium / Desktop): uses File System Access API (`showDirectoryPicker`) when available
  *    outside cross-origin iframes, or signals clean fallback to standard folder/file picker.
  */
@@ -226,7 +204,6 @@ export async function scanDeviceMusicLibrary(
       if (domErr?.name === 'AbortError') {
         return { entries: [], source: 'cancelled' };
       }
-      // SecurityError in iframes or unsupported -> cleanly fall back to <input> picker
       return { entries: [], source: 'fallback-needed' };
     }
   }

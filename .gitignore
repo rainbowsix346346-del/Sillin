@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Android secrets - NEVER commit
+android/keystore.properties
+android/*.keystore
+android/*.jks
