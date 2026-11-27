@@ -7,7 +7,7 @@ coverage/
 .env*
 !.env.example
 
-# Android secrets - NEVER commit
-android/keystore.properties
-android/*.keystore
+# NOTE: Signing files (android/sillon-release.keystore, android/keystore.properties)
+# are intentionally COMMITTED so every build is signed automatically.
+# Do not delete them from the repo!
 android/*.jks
