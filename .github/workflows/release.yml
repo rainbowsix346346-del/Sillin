@@ -22,6 +22,21 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Restore signing files from Secrets
+        env:
+          SILLON_KEYSTORE_BASE64: ${{ secrets.SILLON_KEYSTORE_BASE64 }}
+          SILLON_STORE_PASSWORD: ${{ secrets.SILLON_STORE_PASSWORD }}
+          SILLON_KEY_PASSWORD: ${{ secrets.SILLON_KEY_PASSWORD }}
+          SILLON_KEY_ALIAS: ${{ secrets.SILLON_KEY_ALIAS }}
+        run: |
+          echo "$SILLON_KEYSTORE_BASE64" | base64 -d > android/sillon-release.keystore
+          {
+            echo "storeFile=../sillon-release.keystore"
+            echo "storePassword=$SILLON_STORE_PASSWORD"
+            echo "keyAlias=$SILLON_KEY_ALIAS"
+            echo "keyPassword=$SILLON_KEY_PASSWORD"
+          } > android/keystore.properties
+
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
